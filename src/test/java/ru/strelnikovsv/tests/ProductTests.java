@@ -7,12 +7,16 @@ import org.hamcrest.CoreMatchers;
 import org.junit.jupiter.api.*;
 import retrofit2.Response;
 import retrofit2.Retrofit;
+import ru.strelnikovsv.db.dao.CategoriesMapper;
+import ru.strelnikovsv.db.dao.ProductsMapper;
+import ru.strelnikovsv.db.model.Products;
 import ru.strelnikovsv.dto.Category;
 import ru.strelnikovsv.dto.ErrorMessage;
 import ru.strelnikovsv.dto.Product;
 import ru.strelnikovsv.enums.CategoryType;
 import ru.strelnikovsv.service.CategoryService;
 import ru.strelnikovsv.service.ProductService;
+import ru.strelnikovsv.utils.DbUtils;
 import ru.strelnikovsv.utils.RetrofitUtils;
 
 import java.io.IOException;
@@ -31,6 +35,8 @@ class ProductTests {
     static Retrofit client;
     static ProductService productService;
     static CategoryService categoryService;
+    static ProductsMapper productsMapper;
+    static CategoriesMapper categoriesMapper;
 
     Product product;
 
@@ -41,6 +47,8 @@ class ProductTests {
         client = RetrofitUtils.getRetrofit();
         productService = client.create(ProductService.class);
         categoryService = client.create(CategoryService.class);
+        productsMapper = DbUtils.getProductsMapper();
+        categoriesMapper = DbUtils.getCategoriesMapper();
     }
 
     @BeforeEach
@@ -70,6 +78,9 @@ class ProductTests {
         assertThat(response.body().getTitle(), equalTo(product.getTitle()));
         assertThat(response.body().getPrice(), equalTo(product.getPrice()));
         assertThat(response.body().getCategoryTitle(), equalTo(product.getCategoryTitle()));
+        Products productDB = productsMapper.selectByPrimaryKey(productId.longValue());
+        assertThat(response.body().getTitle(), equalTo(product.getTitle()));
+        assertThat(response.body().getPrice(), equalTo(product.getPrice()));
     }
 
     @Test
@@ -81,6 +92,7 @@ class ProductTests {
         if (errorMessage != null) {
             assertThat(errorMessage.getMessage(), equalTo("Unable to find product with id: " + wrongProductId));
         }
+        assertNull(productsMapper.selectByPrimaryKey(wrongProductId.longValue()));
     }
 
     @Test
@@ -167,18 +179,14 @@ class ProductTests {
         if (errorMessage != null) {
             assertThat(errorMessage.getMessage(), equalTo("Product with id: " + wrongProductId + " doesn't exist"));
         }
+        assertNull(productsMapper.selectByPrimaryKey(wrongProductId.longValue()));
     }
 
     @AfterEach
     void tearDown() {
-        if (productId != null)
-            try {
-                Response<ResponseBody> response = productService.deleteProduct(productId).execute();
-                log.info(Objects.requireNonNull(response.body()).toString());
-                assertThat(response.code(), equalTo(200));
-            } catch (IOException e) {
-                log.error("productId is null");
-            }
+        if (productId != null) {
+            productsMapper.deleteByPrimaryKey(productId.longValue());
+        }
     }
 
 }
